@@ -25,6 +25,15 @@ jobs:
           cache: npm
       - id: pages
         uses: actions/configure-pages@v5
+      - name: Privatzone konfiguriert?
+        run: |
+          if [ -z "$PRIVACY_LAT" ] || [ -z "$PRIVACY_LON" ]; then
+            echo "::error::Secrets PRIVACY_LAT und PRIVACY_LON fehlen (Settings → Secrets and variables → Actions). Ohne sie würden Tracks ungekürzt veröffentlicht."
+            exit 1
+          fi
+        env:
+          PRIVACY_LAT: ${{ secrets.PRIVACY_LAT }}
+          PRIVACY_LON: ${{ secrets.PRIVACY_LON }}
       - run: npm ci
       - run: npm test
       - name: Build
