@@ -10,7 +10,7 @@ bewertung:
   ruhe: 4         # 1 = viel Verkehr … 5 = sehr einsam
 tags: []
 belag: []         # z. B. [asphalt, schotter, trail]
-titelbild: foto-06.jpg
+titelbild: 1000020153.jpg
 # kamera_versatz: "+00:00:00"   # nur nötig, wenn die Kamerauhr falsch ging und kein Foto GPS hat
 # fotos:
 #   IMG_1234.jpg: { km: 12.5 }  # Foto manuell auf Streckenkilometer setzen
