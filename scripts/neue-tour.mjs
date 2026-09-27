@@ -6,7 +6,8 @@
  *
  * - kopiert die GPX nach src/content/touren/<slug>/track.gpx
  * - erkennt anhand der Zeitstempel, ob die Tour gefahren oder geplant ist
- * - verkleinert optional Fotos auf max. 2400 px (EXIF bleibt für die Verortung erhalten)
+ * - verkleinert optional Fotos auf max. 2400 px (EXIF bleibt für die Verortung erhalten,
+ *   außer der GPS-Position bei Fotos, die in der Privatzone aufgenommen wurden)
  * - schreibt eine index.md-Vorlage
  *
  * Fotos einer bestehenden Tour hinzufügen:
@@ -14,6 +15,7 @@
  */
 import { copyFile, mkdir, readdir, readFile, writeFile, access } from 'node:fs/promises';
 import path from 'node:path';
+import exifr from 'exifr';
 import sharp from 'sharp';
 
 const MAX_KANTE = 2400;
@@ -46,20 +48,75 @@ export function slugify(text) {
 
 const existiert = (p) => access(p).then(() => true, () => false);
 
+/** Privatzone aus .env bzw. Umgebungsvariablen – wie beim Build. */
+function privatzone() {
+  try {
+    process.loadEnvFile('.env');
+  } catch {
+    // keine .env vorhanden
+  }
+  const lat = parseFloat(process.env.PRIVACY_LAT ?? '');
+  const lon = parseFloat(process.env.PRIVACY_LON ?? '');
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  return { lat, lon, radiusM: parseFloat(process.env.PRIVACY_RADIUS_M ?? '') || 500 };
+}
+
+const rad = (g) => (g * Math.PI) / 180;
+function abstandM(a, b) {
+  const h =
+    Math.sin(rad(b.lat - a.lat) / 2) ** 2 +
+    Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(rad(b.lon - a.lon) / 2) ** 2;
+  return 2 * 6371008.8 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/**
+ * Die Originalfotos liegen im (öffentlichen) Repo. Liegt die GPS-Position in der
+ * Privatzone, werden nur Kamera und Aufnahmezeit übernommen, damit das Foto
+ * weiterhin zeitlich einsortiert werden kann, ohne den Ort zu verraten.
+ */
+async function exifOhneGps(datei) {
+  const roh = await exifr
+    .parse(datei, {
+      reviveValues: false,
+      pick: ['Make', 'Model', 'DateTimeOriginal', 'CreateDate', 'OffsetTimeOriginal'],
+    })
+    .catch(() => undefined);
+  const nurText = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => typeof v === 'string'));
+  return {
+    IFD0: nurText({ Make: roh?.Make, Model: roh?.Model }),
+    IFD2: nurText({
+      DateTimeOriginal: roh?.DateTimeOriginal ?? roh?.CreateDate,
+      OffsetTimeOriginal: roh?.OffsetTimeOriginal,
+    }),
+  };
+}
+
 async function fotosImportieren(quelle, ziel) {
   await mkdir(ziel, { recursive: true });
   const dateien = (await readdir(quelle)).filter((d) => BILDFORMATE.has(path.extname(d).toLowerCase()));
   const uebersprungen = (await readdir(quelle)).filter((d) => /\.(heic|heif)$/i.test(d));
-  for (const d of dateien) {
-    const aus = path.join(ziel, d.replace(/\.jpeg$/i, '.jpg'));
-    await sharp(path.join(quelle, d))
-      .autoOrient()
-      .resize({ width: MAX_KANTE, height: MAX_KANTE, fit: 'inside', withoutEnlargement: true })
-      .keepExif() // GPS und Aufnahmezeit werden beim Build gebraucht; die Website liefert Bilder ohne EXIF aus
-      .jpeg({ quality: 85, mozjpeg: true })
-      .toFile(aus.replace(/\.(png|webp)$/i, '.jpg'));
-    console.log(`  ✓ ${d}`);
+  const zone = privatzone();
+  if (!zone) {
+    console.warn('  ⚠ Keine Privatzone in .env – GPS-Daten aller Fotos bleiben im Repo erhalten.');
   }
+  let bereinigt = 0;
+  for (const d of dateien) {
+    const eingabe = path.join(quelle, d);
+    const aus = path.join(ziel, d.replace(/\.jpeg$/i, '.jpg'));
+    const gps = await exifr.gps(eingabe).catch(() => undefined);
+    const inZone =
+      !!zone && gps?.latitude != null && abstandM({ lat: gps.latitude, lon: gps.longitude }, zone) <= zone.radiusM;
+
+    let bild = sharp(eingabe)
+      .autoOrient()
+      .resize({ width: MAX_KANTE, height: MAX_KANTE, fit: 'inside', withoutEnlargement: true });
+    // Sonst bleiben GPS und Aufnahmezeit für die Verortung erhalten; die Website liefert Bilder ohne EXIF aus.
+    bild = inZone ? bild.withExif(await exifOhneGps(eingabe)) : bild.keepExif();
+    await bild.jpeg({ quality: 85, mozjpeg: true }).toFile(aus.replace(/\.(png|webp)$/i, '.jpg'));
+    if (inZone) bereinigt++;
+    console.log(`  ✓ ${d}${inZone ? ' (in der Privatzone aufgenommen – GPS entfernt)' : ''}`);
+  }
+  if (bereinigt) console.log(`  ${bereinigt} Foto(s) ohne GPS gespeichert.`);
   if (uebersprungen.length) {
     console.warn(
       `  ⚠ ${uebersprungen.length} HEIC-Datei(en) übersprungen. Bitte als JPG exportieren ` +

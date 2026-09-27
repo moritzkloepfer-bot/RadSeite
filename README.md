@@ -74,6 +74,7 @@ iPhone-Fotos im HEIC-Format werden nicht unterstützt. Bitte als JPG exportieren
 - **Kennzahlen:** Distanz, Höhenmeter usw. werden weiterhin aus dem vollständigen Track berechnet.
 - **GPX-Download:** Die Datei enthält keine Zeitstempel.
 - **Fotos:** Alle ausgelieferten Bilder werden nach dem Build ohne EXIF-Daten neu geschrieben (`integrations/exif-entfernen.mjs`). Fotos, die in der Privatzone aufgenommen wurden, bekommen keinen Kartenmarker.
+- **Fotos im Repo:** Die Originale im Repo behalten ihre GPS-Daten, die Seite braucht sie zum Verorten. Ausnahme: Bei Fotos, die in der Privatzone aufgenommen wurden, entfernt `npm run neue-tour` die GPS-Position schon beim Import. Kamera und Aufnahmezeit bleiben erhalten. Dafür muss die Privatzone in `.env` eingetragen sein. Fotos, die du von Hand nach `fotos/` kopierst, werden **nicht** bereinigt.
 - **Kontrolle:** `npm run build && npm run check-privacy` prüft die fertige Seite. Der Deploy-Workflow führt diese Prüfung automatisch aus und bricht bei einem Verstoß ab.
 
 ## Veröffentlichen (GitHub Pages)
