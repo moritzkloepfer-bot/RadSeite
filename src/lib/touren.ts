@@ -122,6 +122,8 @@ let cache: Promise<Tour[]> | null = null;
 
 /** Alle Touren: gefahrene nach Datum (neueste zuerst), dann geplante nach Titel. */
 export function alleTouren(): Promise<Tour[]> {
+  // Im Dev-Server nicht cachen, damit neue oder geänderte Touren sofort erscheinen
+  if (import.meta.env.DEV) cache = null;
   cache ??= getCollection('touren')
     .then((e) => Promise.all(e.map(tourLaden)))
     .then((t) =>

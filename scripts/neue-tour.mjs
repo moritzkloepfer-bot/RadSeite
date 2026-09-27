@@ -155,7 +155,11 @@ async function main() {
 
   const ersteZeit = gpx.match(/<trkpt[^>]*>[\s\S]*?<time>([^<]+)<\/time>/)?.[1];
   const gefahren = !!ersteZeit;
-  const komoot = gpx.match(/https?:\/\/www\.komoot\.[a-z]+\/[^"<\s]*tour\/\d+/)?.[0];
+  // Komoot benennt Exporte „<datum>_<tour-id>_<name>.gpx“
+  const komootId = path.basename(gpxPfad).match(/^\d{4}-\d{2}-\d{2}_(\d+)_/)?.[1];
+  const komoot =
+    gpx.match(/https?:\/\/www\.komoot\.[a-z]+\/[^"<\s]*tour\/\d+/)?.[0] ??
+    (komootId ? `https://www.komoot.com/de-de/tour/${komootId}` : undefined);
 
   await mkdir(ordner, { recursive: true });
   await copyFile(gpxPfad, path.join(ordner, 'track.gpx'));

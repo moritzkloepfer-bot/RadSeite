@@ -24,6 +24,7 @@ npm run dev               # http://localhost:4321
    npm run neue-tour -- ~/Downloads/tour.gpx "Rund um den Kaiserstuhl" --fotos ~/Bilder/kaiserstuhl
    ```
    Das Skript legt `src/content/touren/<slug>/` mit `track.gpx`, `index.md` und `fotos/` an. Die Fotos werden auf max. 2400 px verkleinert, die EXIF-Daten bleiben dabei erhalten.
+   Die Komoot-ID liest das Skript aus dem Dateinamen des Exports. Läuft `npm run dev` gerade, muss der Server danach neu gestartet werden, damit die neue Tour erscheint.
 3. **Ausfüllen:** Sterne, Tags und Text in `index.md` eintragen.
 4. **Veröffentlichen:** Mit `git push` baut GitHub Actions die Seite und veröffentlicht sie.
 
@@ -87,8 +88,6 @@ iPhone-Fotos im HEIC-Format werden nicht unterstützt. Bitte als JPG exportieren
    - optional `PRIVACY_RADIUS_M`
 
 Jeder Push auf `main` löst dann Tests, Build, Privatsphäre-Prüfung und Veröffentlichung aus.
-
-**Vor der Veröffentlichung:** `src/pages/impressum.astro` ausfüllen und die Beispieltouren in `src/content/touren/beispiel-*` löschen.
 
 ## Befehle
 
