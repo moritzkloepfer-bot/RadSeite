@@ -1,0 +1,120 @@
+---
+interface Props {
+  bewertung?: { anspruch?: number; schoenheit?: number; ruhe?: number };
+  kompakt?: boolean;
+  geschaetzt?: boolean;
+}
+const { bewertung = {}, kompakt = false, geschaetzt = false } = Astro.props;
+
+const skalen = [
+  {
+    key: 'anspruch',
+    label: 'Anspruch',
+    hilfe: 'Konditioneller Anspruch – 5 = sehr anstrengend',
+    // Berg
+    pfad: 'M1.5 20.5 9 7l4.5 7.5L16 11l6.5 9.5z',
+  },
+  {
+    key: 'schoenheit',
+    label: 'Schönheit',
+    hilfe: 'Landschaft & Strecke – 5 = außergewöhnlich schön',
+    // Stern
+    pfad: 'm12 2.5 2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z',
+  },
+  {
+    key: 'ruhe',
+    label: 'Ruhe',
+    hilfe: 'Verkehr/Einsamkeit – 5 = sehr ruhig, kaum Verkehr',
+    // Baum
+    pfad: 'M12 2 5 12h3.5L4 18h6.5v4h3v-4H20l-4.5-6H19z',
+  },
+] as const;
+---
+
+<dl class:list={['bewertung', { kompakt }]}>
+  {
+    skalen.map((s) => {
+      const wert = bewertung[s.key];
+      return (
+        <div class={`zeile ${s.key}`} title={s.hilfe}>
+          <dt>{s.label}</dt>
+          <dd>
+            {wert ? (
+              <span class="icons" role="img" aria-label={`${wert} von 5`}>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <svg viewBox="0 0 24 24" class:list={{ voll: n <= wert }} aria-hidden="true">
+                    <path d={s.pfad} />
+                  </svg>
+                ))}
+              </span>
+            ) : (
+              <span class="offen">noch offen</span>
+            )}
+          </dd>
+        </div>
+      );
+    })
+  }
+  {geschaetzt && <p class="hinweis">Vorab eingeschätzt</p>}
+</dl>
+
+<style>
+  .bewertung {
+    margin: 0;
+    display: grid;
+    gap: 0.35rem;
+  }
+  .zeile {
+    display: grid;
+    grid-template-columns: 6.5rem auto;
+    align-items: center;
+  }
+  dt {
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  dd {
+    margin: 0;
+  }
+  .icons {
+    display: inline-flex;
+    gap: 2px;
+  }
+  svg {
+    width: 20px;
+    height: 20px;
+    fill: var(--stern-leer);
+  }
+  .anspruch svg.voll {
+    fill: var(--stern-anspruch);
+  }
+  .schoenheit svg.voll {
+    fill: var(--stern-schoenheit);
+  }
+  .ruhe svg.voll {
+    fill: var(--stern-ruhe);
+  }
+  .offen {
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-style: italic;
+  }
+  .hinweis {
+    margin: 0.2rem 0 0;
+    font-size: 0.8rem;
+    color: var(--geplant);
+  }
+  .kompakt {
+    gap: 0.15rem;
+  }
+  .kompakt .zeile {
+    grid-template-columns: 5.2rem auto;
+  }
+  .kompakt dt {
+    font-size: 0.8rem;
+  }
+  .kompakt svg {
+    width: 15px;
+    height: 15px;
+  }
+</style>

@@ -1,0 +1,348 @@
+---
+import Layout from '../layouts/Layout.astro';
+import TourKachel from '../components/TourKachel.astro';
+import { alleTouren, fmtKm, url } from '../lib/touren';
+
+const touren = await alleTouren();
+const gefahren = touren.filter((t) => t.daten.status === 'gefahren');
+const summeKm = gefahren.reduce((s, t) => s + t.kennzahlen.distanzKm, 0);
+const summeHm = gefahren.reduce((s, t) => s + t.kennzahlen.aufstiegM, 0);
+const tags = [...new Set(touren.flatMap((t) => t.daten.tags))].sort((a, b) => a.localeCompare(b, 'de'));
+
+const kartenDaten = JSON.stringify(
+  touren.map((t) => ({
+    id: t.id,
+    titel: t.daten.titel,
+    status: t.daten.status,
+    km: fmtKm(t.kennzahlen.distanzKm),
+    href: url(`touren/${t.id}`),
+    linie: t.linie,
+  })),
+);
+---
+
+<Layout>
+  <section class="wrap intro">
+    <h1>Radtouren</h1>
+    <p class="muted">
+      {gefahren.length} {gefahren.length === 1 ? 'gefahrene Tour' : 'gefahrene Touren'} · {fmtKm(summeKm)} km · {summeHm.toLocaleString('de-DE')} Hm
+      {touren.length > gefahren.length && <> · {touren.length - gefahren.length} geplant</>}
+    </p>
+  </section>
+
+  <section class="wrap">
+    <div class="uebersicht card" data-uebersicht={kartenDaten} role="region" aria-label="Karte aller Touren"></div>
+    <p class="legende muted">
+      <span class="strich gefahren"></span> gefahren
+      <span class="strich geplant"></span> geplant
+    </p>
+  </section>
+
+  <section class="wrap">
+    <form class="filter card" data-filter aria-label="Touren filtern">
+      <fieldset class="status">
+        <legend class="visually-hidden">Status</legend>
+        <label><input type="radio" name="status" value="" checked /><span>Alle</span></label>
+        <label><input type="radio" name="status" value="gefahren" /><span>Gefahren</span></label>
+        <label><input type="radio" name="status" value="geplant" /><span>Geplant</span></label>
+      </fieldset>
+
+      <label class="feld">
+        <span>Anspruch</span>
+        <select name="anspruch">
+          <option value="">egal</option>
+          <option value="1-2">leicht (1–2)</option>
+          <option value="3-3">mittel (3)</option>
+          <option value="4-5">schwer (4–5)</option>
+        </select>
+      </label>
+      <label class="feld">
+        <span>Schönheit</span>
+        <select name="schoenheit">
+          <option value="">egal</option>
+          {[3, 4, 5].map((n) => <option value={n}>ab {n} ★</option>)}
+        </select>
+      </label>
+      <label class="feld">
+        <span>Ruhe</span>
+        <select name="ruhe">
+          <option value="">egal</option>
+          {[3, 4, 5].map((n) => <option value={n}>ab {n}</option>)}
+        </select>
+      </label>
+      <div class="feld km">
+        <span>Distanz (km)</span>
+        <div>
+          <input type="number" name="kmVon" min="0" step="5" placeholder="von" inputmode="numeric" aria-label="Distanz von" />
+          <input type="number" name="kmBis" min="0" step="5" placeholder="bis" inputmode="numeric" aria-label="Distanz bis" />
+        </div>
+      </div>
+      <label class="feld">
+        <span>Sortieren</span>
+        <select name="sort">
+          <option value="standard">Neueste zuerst</option>
+          <option value="km-auf">Distanz ↑</option>
+          <option value="km-ab">Distanz ↓</option>
+          <option value="schoenheit">Schönste</option>
+          <option value="ruhe">Ruhigste</option>
+          <option value="anspruch">Anspruch ↑</option>
+        </select>
+      </label>
+
+      {
+        tags.length > 0 && (
+          <fieldset class="tags">
+            <legend class="visually-hidden">Tags</legend>
+            {tags.map((t) => (
+              <label>
+                <input type="checkbox" name="tag" value={t} />
+                <span>#{t}</span>
+              </label>
+            ))}
+          </fieldset>
+        )
+      }
+      <p class="anzahl muted" aria-live="polite" data-anzahl></p>
+      <button type="reset" class="btn zuruecksetzen">Zurücksetzen</button>
+    </form>
+
+    <div class="kacheln" data-kacheln>
+      {touren.map((t) => <TourKachel tour={t} />)}
+    </div>
+    <p class="leer muted" data-leer hidden>Keine Tour passt zu diesen Filtern.</p>
+  </section>
+</Layout>
+
+<script>
+  import { basisKarte, einpassen, farbe, L } from '../scripts/karte';
+
+  // ---- Übersichtskarte ----
+  const kartenEl = document.querySelector<HTMLElement>('[data-uebersicht]')!;
+  const touren: { id: string; titel: string; status: string; km: string; href: string; linie: [number, number][] }[] =
+    JSON.parse(kartenEl.dataset.uebersicht!);
+  const karte = basisKarte(kartenEl);
+  const linien = new Map<string, L.Polyline>();
+  const gruppe = L.featureGroup().addTo(karte);
+
+  for (const t of touren) {
+    const geplant = t.status === 'geplant';
+    const basis: L.PolylineOptions = {
+      color: farbe(geplant ? '--geplant' : '--accent'),
+      weight: 4,
+      opacity: 0.85,
+      dashArray: geplant ? '8 7' : undefined,
+    };
+    const linie = L.polyline(t.linie, basis)
+      .bindTooltip(`<strong>${t.titel}</strong><br>${t.km} km`, { sticky: true })
+      .on('click', () => (location.href = t.href))
+      .on('mouseover', () => markieren(t.id, true))
+      .on('mouseout', () => markieren(t.id, false));
+    linie.addTo(gruppe);
+    linien.set(t.id, linie);
+  }
+  if (touren.length) einpassen(karte, gruppe.getBounds());
+
+  function markieren(id: string, an: boolean) {
+    linien.get(id)?.setStyle({ weight: an ? 7 : 4, opacity: an ? 1 : 0.85 });
+    if (an) linien.get(id)?.bringToFront();
+    document.querySelector(`[data-tour="${id}"]`)?.classList.toggle('aktiv', an);
+  }
+
+  // ---- Filter & Sortierung ----
+  const form = document.querySelector<HTMLFormElement>('[data-filter]')!;
+  const container = document.querySelector<HTMLElement>('[data-kacheln]')!;
+  const kacheln = [...container.querySelectorAll<HTMLElement>('[data-tour]')];
+  const anzahl = document.querySelector<HTMLElement>('[data-anzahl]')!;
+  const leer = document.querySelector<HTMLElement>('[data-leer]')!;
+  const reihenfolge = new Map(kacheln.map((k, i) => [k, i]));
+
+  for (const k of kacheln) {
+    k.addEventListener('mouseenter', () => markieren(k.dataset.tour!, true));
+    k.addEventListener('mouseleave', () => markieren(k.dataset.tour!, false));
+  }
+
+  const zahl = (el: HTMLElement, key: string) => parseFloat(el.dataset[key] ?? '0');
+
+  function anwenden() {
+    const f = new FormData(form);
+    const status = f.get('status') as string;
+    const [aVon, aBis] = ((f.get('anspruch') as string) || '0-5').split('-').map(Number);
+    const schoen = Number(f.get('schoenheit') || 0);
+    const ruhe = Number(f.get('ruhe') || 0);
+    const kmVon = Number(f.get('kmVon') || 0);
+    const kmBis = Number(f.get('kmBis') || Infinity);
+    const tags = f.getAll('tag') as string[];
+
+    let sichtbar = 0;
+    for (const k of kacheln) {
+      const ktags = (k.dataset.tags ?? '').split(' ');
+      const a = zahl(k, 'anspruch');
+      const ok =
+        (!status || k.dataset.status === status) &&
+        (!f.get('anspruch') || (a >= aVon && a <= aBis)) &&
+        zahl(k, 'schoenheit') >= schoen &&
+        zahl(k, 'ruhe') >= ruhe &&
+        zahl(k, 'km') >= kmVon &&
+        zahl(k, 'km') <= kmBis &&
+        tags.every((t) => ktags.includes(t));
+      k.hidden = !ok;
+      const linie = linien.get(k.dataset.tour!);
+      if (linie) ok ? linie.addTo(gruppe) : linie.remove();
+      if (ok) sichtbar++;
+    }
+
+    const sort = f.get('sort') as string;
+    const schluessel: Record<string, (k: HTMLElement) => number> = {
+      standard: (k) => reihenfolge.get(k)!,
+      'km-auf': (k) => zahl(k, 'km'),
+      'km-ab': (k) => -zahl(k, 'km'),
+      schoenheit: (k) => -zahl(k, 'schoenheit'),
+      ruhe: (k) => -zahl(k, 'ruhe'),
+      anspruch: (k) => zahl(k, 'anspruch') || 99,
+    };
+    const s = schluessel[sort] ?? schluessel.standard;
+    [...kacheln]
+      .sort((x, y) => s(x) - s(y) || reihenfolge.get(x)! - reihenfolge.get(y)!)
+      .forEach((k) => container.append(k));
+
+    anzahl.textContent = `${sichtbar} von ${kacheln.length} Touren`;
+    leer.hidden = sichtbar > 0;
+  }
+
+  form.addEventListener('input', anwenden);
+  form.addEventListener('change', anwenden);
+  form.addEventListener('submit', (e) => e.preventDefault());
+  form.addEventListener('reset', () => setTimeout(anwenden));
+  anwenden();
+</script>
+
+<style>
+  .intro {
+    padding-top: 2rem;
+    padding-bottom: 1rem;
+  }
+  .intro h1 {
+    margin: 0;
+    font-size: clamp(2rem, 5vw, 3rem);
+  }
+  .intro p {
+    margin: 0.3rem 0 0;
+  }
+  .uebersicht {
+    height: clamp(300px, 50vh, 520px);
+    overflow: hidden;
+  }
+  .legende {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.82rem;
+    margin: 0.5rem 0 1.5rem;
+  }
+  .strich {
+    display: inline-block;
+    width: 26px;
+    height: 0;
+    border-top: 4px solid var(--accent);
+    margin-left: 0.6rem;
+  }
+  .strich:first-child {
+    margin-left: 0;
+  }
+  .strich.geplant {
+    border-top: 4px dashed var(--geplant);
+  }
+  .filter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.9rem 1.2rem;
+    padding: 1rem 1.1rem;
+    margin-bottom: 1.25rem;
+  }
+  fieldset {
+    border: 0;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  fieldset input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  fieldset span {
+    display: inline-block;
+    padding: 0.35rem 0.8rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    font-size: 0.88rem;
+    cursor: pointer;
+    user-select: none;
+  }
+  fieldset input:checked + span {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--surface);
+  }
+  fieldset input:focus-visible + span {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .tags {
+    flex-basis: 100%;
+  }
+  .tags span {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.65rem;
+  }
+  .feld {
+    display: grid;
+    gap: 0.2rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  .feld select,
+  .feld input {
+    font: inherit;
+    font-size: 0.92rem;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.35rem 0.5rem;
+  }
+  .km div {
+    display: flex;
+    gap: 0.3rem;
+  }
+  .km input {
+    width: 5rem;
+  }
+  .anzahl {
+    margin: 0 0 0 auto;
+    font-size: 0.85rem;
+    align-self: center;
+  }
+  .zuruecksetzen {
+    font-size: 0.85rem;
+    padding: 0.35rem 0.8rem;
+  }
+  .kacheln {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.1rem;
+  }
+  .leer {
+    text-align: center;
+    padding: 2rem 0;
+  }
+  @media (max-width: 600px) {
+    .anzahl {
+      margin: 0;
+      flex-basis: 100%;
+    }
+  }
+</style>

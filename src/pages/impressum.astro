@@ -1,0 +1,34 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout titel="Impressum & Datenschutz">
+  <article class="wrap text">
+    <h1>Impressum &amp; Datenschutz</h1>
+    <p class="hinweis">
+      <strong>Platzhalter:</strong> Bitte vor der Veröffentlichung ausfüllen. Ob für eine private Seite ein Impressum
+      nötig ist, hängt vom Einzelfall ab.
+    </p>
+
+    <h2>Angaben</h2>
+    <p>Name<br />Anschrift<br />E-Mail</p>
+
+    <h2>Datenschutz</h2>
+    <p>
+      Diese Seite ist statisch und setzt keine Cookies. Beim Anzeigen der Karten lädt dein Browser Kartenkacheln von
+      OpenStreetMap, CyclOSM bzw. OpenTopoMap. Dabei wird deine IP-Adresse an diese Dienste übertragen.
+    </p>
+  </article>
+</Layout>
+
+<style>
+  .text {
+    max-width: 70ch;
+    padding-top: 2rem;
+  }
+  .hinweis {
+    background: var(--geplant-soft);
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
+  }
+</style>

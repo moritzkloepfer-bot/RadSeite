@@ -1,0 +1,197 @@
+---
+import { render } from 'astro:content';
+import Layout from '../../layouts/Layout.astro';
+import Bewertung from '../../components/Bewertung.astro';
+import TourKarte from '../../components/TourKarte.astro';
+import Hoehenprofil from '../../components/Hoehenprofil.astro';
+import Galerie from '../../components/Galerie.astro';
+import { alleTouren, fmtDatum, fmtDauer, fmtKm, url, type Tour } from '../../lib/touren';
+
+export async function getStaticPaths() {
+  const touren = await alleTouren();
+  return touren.map((tour) => ({ params: { slug: tour.id }, props: { tour } }));
+}
+
+interface Props {
+  tour: Tour;
+}
+const { tour } = Astro.props;
+const { daten: d, kennzahlen: k } = tour;
+const { Content } = await render(tour.eintrag);
+const geplant = d.status === 'geplant';
+
+const werte = [
+  { label: 'Distanz', wert: `${fmtKm(k.distanzKm)} km` },
+  { label: 'Aufstieg', wert: `${k.aufstiegM.toLocaleString('de-DE')} m` },
+  { label: 'Abstieg', wert: `${k.abstiegM.toLocaleString('de-DE')} m` },
+  k.maxHoeheM != null && { label: 'Höchster Punkt', wert: `${k.maxHoeheM.toLocaleString('de-DE')} m` },
+  k.maxSteigungProzent != null && { label: 'Max. Steigung', wert: `${Math.round(k.maxSteigungProzent)} %` },
+  k.dauerMin != null
+    ? { label: 'Dauer (gesamt)', wert: fmtDauer(k.dauerMin) }
+    : { label: 'Fahrzeit (geschätzt)', wert: `≈ ${fmtDauer(k.geschaetztMin)}` },
+].filter((w): w is { label: string; wert: string } => !!w);
+---
+
+<Layout titel={d.titel} beschreibung={`${d.titel}: ${fmtKm(k.distanzKm)} km, ${k.aufstiegM} Hm`}>
+  <article class="wrap">
+    <nav class="zurueck"><a href={url('/')}>← Alle Touren</a></nav>
+
+    <header class="kopf">
+      <div>
+        <p class="meta">
+          <span class:list={['badge', { geplant }]}>{geplant ? 'Geplant' : 'Gefahren'}</span>
+          {d.datum && <span>{fmtDatum(d.datum)}</span>}
+          {d.region && <span>{d.region}</span>}
+        </p>
+        <h1>{d.titel}</h1>
+      </div>
+      <div class="aktionen">
+        <a class="btn primary" href={url(`touren/${tour.id}.gpx`)} download={`${tour.id}.gpx`}>
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 21h16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          GPX
+        </a>
+        {d.komoot && (
+          <a class="btn" href={d.komoot} target="_blank" rel="noopener">
+            In Komoot öffnen ↗
+          </a>
+        )}
+      </div>
+    </header>
+
+    <TourKarte tour={tour} />
+
+    <div class="raster">
+      <section class="werte card" aria-label="Kennzahlen">
+        <dl>
+          {
+            werte.map((w) => (
+              <div>
+                <dt>{w.label}</dt>
+                <dd>{w.wert}</dd>
+              </div>
+            ))
+          }
+        </dl>
+      </section>
+      <section class="card bewertung-box" aria-label="Bewertung">
+        <h2>Bewertung</h2>
+        <Bewertung bewertung={d.bewertung} geschaetzt={geplant && !!d.bewertung} />
+        {
+          (d.tags.length > 0 || d.belag.length > 0) && (
+            <p class="chips">
+              {d.belag.map((b) => (
+                <span class="chip">{b}</span>
+              ))}
+              {d.tags.map((t) => (
+                <span class="chip">#{t}</span>
+              ))}
+            </p>
+          )
+        }
+      </section>
+    </div>
+
+    <Hoehenprofil profil={tour.profil} status={d.status} />
+
+    <section class="text">
+      <Content />
+    </section>
+
+    {
+      tour.fotos.length > 0 && (
+        <section>
+          <h2>Fotos</h2>
+          <Galerie fotos={tour.fotos} />
+        </section>
+      )
+    }
+  </article>
+</Layout>
+
+<style>
+  article > * + * {
+    margin-top: 1.25rem;
+  }
+  .zurueck {
+    padding-top: 1.25rem;
+    font-size: 0.9rem;
+  }
+  .zurueck a {
+    text-decoration: none;
+  }
+  .kopf {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  h1 {
+    margin: 0.3rem 0 0;
+    font-size: clamp(1.7rem, 4vw, 2.6rem);
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.9rem;
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .aktionen {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .raster {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 1.25rem;
+  }
+  @media (max-width: 760px) {
+    .raster {
+      grid-template-columns: 1fr;
+    }
+  }
+  .werte {
+    padding: 1.1rem 1.25rem;
+  }
+  .werte dl {
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 1rem 1.5rem;
+  }
+  .werte dt {
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  .werte dd {
+    margin: 0.1rem 0 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .bewertung-box {
+    padding: 1.1rem 1.25rem;
+  }
+  .bewertung-box h2 {
+    margin: 0 0 0.6rem;
+    font-size: 1.1rem;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin: 0.9rem 0 0;
+  }
+  .text {
+    max-width: 70ch;
+    font-size: 1.05rem;
+  }
+  section > h2 {
+    font-size: 1.4rem;
+    margin: 2rem 0 0.8rem;
+  }
+</style>

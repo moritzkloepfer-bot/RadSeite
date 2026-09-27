@@ -1,0 +1,56 @@
+name: Website bauen und veröffentlichen
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - id: pages
+        uses: actions/configure-pages@v5
+      - run: npm ci
+      - run: npm test
+      - name: Build
+        run: npm run build
+        env:
+          SITE: ${{ steps.pages.outputs.origin }}
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          PRIVACY_LAT: ${{ secrets.PRIVACY_LAT }}
+          PRIVACY_LON: ${{ secrets.PRIVACY_LON }}
+          PRIVACY_RADIUS_M: ${{ secrets.PRIVACY_RADIUS_M }}
+      - name: Privatsphäre prüfen
+        run: npm run check-privacy
+        env:
+          PRIVACY_LAT: ${{ secrets.PRIVACY_LAT }}
+          PRIVACY_LON: ${{ secrets.PRIVACY_LON }}
+          PRIVACY_RADIUS_M: ${{ secrets.PRIVACY_RADIUS_M }}
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

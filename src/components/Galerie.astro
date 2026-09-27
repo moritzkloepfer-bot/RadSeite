@@ -1,0 +1,119 @@
+---
+import { Image, getImage } from 'astro:assets';
+import { fmtKm, type Foto } from '../lib/touren';
+
+interface Props {
+  fotos: Foto[];
+}
+const { fotos } = Astro.props;
+
+const quelleText = { gps: 'GPS', zeit: 'Zeitstempel', manuell: 'manuell' } as const;
+
+const eintraege = await Promise.all(
+  fotos.map(async (f) => {
+    const gross = await getImage({ src: f.bild, width: Math.min(2000, f.bild.width), format: 'webp', quality: 82 });
+    const breite = Number(gross.attributes.width ?? f.bild.width);
+    const hoehe = Math.round((breite / f.bild.width) * f.bild.height);
+    return { f, gross: gross.src, breite, hoehe };
+  }),
+);
+---
+
+{
+  fotos.length > 0 && (
+    <div class="galerie" data-galerie>
+      {eintraege.map(({ f, gross, breite, hoehe }) => (
+        <a
+          href={gross}
+          data-pswp-width={breite}
+          data-pswp-height={hoehe}
+          data-titel={f.position ? `km ${fmtKm(f.position.km)} · verortet per ${quelleText[f.quelle!]}` : ''}
+        >
+          <Image src={f.bild} alt="" widths={[320, 480, 640]} sizes="(max-width: 600px) 50vw, 300px" loading="lazy" />
+          {f.position && <span class="km">km {fmtKm(f.position.km)}</span>}
+        </a>
+      ))}
+    </div>
+  )
+}
+
+<script>
+  import PhotoSwipeLightbox from 'photoswipe/lightbox';
+  import 'photoswipe/style.css';
+
+  const el = document.querySelector<HTMLElement>('[data-galerie]');
+  if (el) {
+    const lightbox = new PhotoSwipeLightbox({
+      gallery: el,
+      children: 'a',
+      pswpModule: () => import('photoswipe'),
+      bgOpacity: 0.92,
+    });
+    lightbox.on('uiRegister', () => {
+      lightbox.pswp?.ui?.registerElement({
+        name: 'bildunterschrift',
+        order: 9,
+        isButton: false,
+        appendTo: 'root',
+        onInit: (node, pswp) => {
+          pswp.on('change', () => {
+            const a = pswp.currSlide?.data.element as HTMLElement | undefined;
+            node.textContent = a?.dataset.titel ?? '';
+          });
+        },
+      });
+    });
+    lightbox.init();
+    window.addEventListener('galerie:oeffnen', (e) => lightbox.loadAndOpen((e as CustomEvent).detail.index));
+  }
+</script>
+
+<style>
+  .galerie {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.6rem;
+  }
+  .galerie a {
+    position: relative;
+    display: block;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    border-radius: 10px;
+    background: var(--surface-2);
+  }
+  .galerie img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.25s ease;
+  }
+  .galerie a:hover img {
+    transform: scale(1.04);
+  }
+  .km {
+    position: absolute;
+    left: 0.4rem;
+    bottom: 0.4rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    background: rgb(0 0 0 / 55%);
+    color: #fff;
+  }
+  :global(.pswp__bildunterschrift) {
+    position: absolute;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #fff;
+    font-size: 0.9rem;
+    background: rgb(0 0 0 / 45%);
+    padding: 0.2rem 0.7rem;
+    border-radius: 999px;
+  }
+  :global(.pswp__bildunterschrift:empty) {
+    display: none;
+  }
+</style>

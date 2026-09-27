@@ -1,0 +1,148 @@
+---
+import { Image } from 'astro:assets';
+import Bewertung from './Bewertung.astro';
+import { fmtDatum, fmtKm, url, type Tour } from '../lib/touren';
+
+interface Props {
+  tour: Tour;
+}
+const { tour } = Astro.props;
+const { daten: d, kennzahlen: k } = tour;
+const geplant = d.status === 'geplant';
+
+// Mini-Streckenbild als Ersatz, wenn es kein Foto gibt
+const lats = tour.linie.map((p) => p[0]);
+const lons = tour.linie.map((p) => p[1]);
+const minLat = Math.min(...lats);
+const maxLat = Math.max(...lats);
+const minLon = Math.min(...lons);
+const maxLon = Math.max(...lons);
+const kx = Math.cos((((minLat + maxLat) / 2) * Math.PI) / 180);
+const spanne = Math.max((maxLon - minLon) * kx, maxLat - minLat) || 1;
+const pfad = tour.linie
+  .map(([la, lo]) => {
+    const x = 10 + (((lo - minLon) * kx) / spanne) * 80 + (80 - ((maxLon - minLon) * kx * 80) / spanne) / 2;
+    const y = 10 + ((maxLat - la) / spanne) * 80 + (80 - ((maxLat - minLat) * 80) / spanne) / 2;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  })
+  .join(' ');
+const b = d.bewertung ?? {};
+---
+
+<a
+  class="kachel card"
+  href={url(`touren/${tour.id}`)}
+  data-tour={tour.id}
+  data-status={d.status}
+  data-km={k.distanzKm.toFixed(1)}
+  data-hm={k.aufstiegM}
+  data-datum={d.datum?.getTime() ?? 0}
+  data-titel={d.titel}
+  data-anspruch={b.anspruch ?? 0}
+  data-schoenheit={b.schoenheit ?? 0}
+  data-ruhe={b.ruhe ?? 0}
+  data-tags={d.tags.join(' ')}
+>
+  <div class="bild">
+    {
+      tour.titelbild ? (
+        <Image src={tour.titelbild.bild} alt="" widths={[400, 640, 800]} sizes="(max-width: 700px) 100vw, 380px" loading="lazy" />
+      ) : (
+        <svg viewBox="0 0 100 100" class:list={['strecke', { geplant }]} aria-hidden="true">
+          <polyline points={pfad} />
+        </svg>
+      )
+    }
+    <span class:list={['badge', 'status', { geplant }]}>{geplant ? 'Geplant' : 'Gefahren'}</span>
+  </div>
+  <div class="inhalt">
+    <h3>{d.titel}</h3>
+    <p class="meta">
+      {d.datum && <span>{fmtDatum(d.datum)}</span>}
+      {d.region && <span>{d.region}</span>}
+    </p>
+    <p class="zahlen">
+      <span><strong>{fmtKm(k.distanzKm)}</strong> km</span>
+      <span><strong>{k.aufstiegM.toLocaleString('de-DE')}</strong> Hm</span>
+    </p>
+    <Bewertung bewertung={d.bewertung} kompakt />
+  </div>
+</a>
+
+<style>
+  .kachel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    color: inherit;
+    text-decoration: none;
+    transition:
+      transform 0.15s ease,
+      border-color 0.15s ease;
+  }
+  .kachel:hover,
+  .kachel.aktiv {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+  }
+  .kachel[hidden] {
+    display: none;
+  }
+  .bild {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: var(--surface-2);
+    overflow: hidden;
+  }
+  .bild img,
+  .strecke {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .strecke polyline {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 1.6;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .strecke.geplant polyline {
+    stroke: var(--geplant);
+    stroke-dasharray: 5 4;
+  }
+  .status {
+    position: absolute;
+    top: 0.6rem;
+    left: 0.6rem;
+  }
+  .inhalt {
+    padding: 0.9rem 1rem 1rem;
+    display: grid;
+    gap: 0.45rem;
+  }
+  h3 {
+    margin: 0;
+    font-size: 1.15rem;
+  }
+  .meta {
+    margin: -0.2rem 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 0.8rem;
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+  .meta:empty {
+    display: none;
+  }
+  .zahlen {
+    margin: 0;
+    display: flex;
+    gap: 1rem;
+    font-variant-numeric: tabular-nums;
+  }
+</style>

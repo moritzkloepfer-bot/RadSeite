@@ -1,0 +1,98 @@
+---
+import '../styles/global.css';
+import { url } from '../lib/touren';
+
+interface Props {
+  titel?: string;
+  beschreibung?: string;
+}
+const { titel, beschreibung = 'Geplante und gefahrene Radtouren mit Karten, Höhenprofilen und Fotos.' } = Astro.props;
+const seitenTitel = titel ? `${titel} · Radtouren` : 'Radtouren';
+---
+
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={beschreibung} />
+    <link rel="icon" href={url('favicon.svg')} type="image/svg+xml" />
+    <title>{seitenTitel}</title>
+  </head>
+  <body>
+    <header class="kopf">
+      <div class="wrap kopf-inner">
+        <a class="logo" href={url('/')}>
+          <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">
+            <circle cx="8" cy="21" r="6" fill="none" stroke="currentColor" stroke-width="2.4"></circle>
+            <circle cx="24" cy="21" r="6" fill="none" stroke="currentColor" stroke-width="2.4"></circle>
+            <path d="M8 21 13 11h9l2 10M13 11l5 10h-10M12 8h4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+          <span>Radtouren</span>
+        </a>
+        <nav>
+          <a href={url('/')}>Touren</a>
+        </nav>
+      </div>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer class="fuss">
+      <div class="wrap">
+        <span>Kartendaten © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende</span>
+        <a href={url('impressum')}>Impressum &amp; Datenschutz</a>
+      </div>
+    </footer>
+  </body>
+</html>
+
+<style>
+  .kopf {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+  }
+  .kopf-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--accent);
+    text-decoration: none;
+    font-family: var(--font-head);
+    font-size: 1.35rem;
+    font-weight: 700;
+  }
+  nav a {
+    color: var(--text);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  main {
+    min-height: calc(100vh - 140px);
+  }
+  .fuss {
+    border-top: 1px solid var(--border);
+    margin-top: 4rem;
+    padding: 1.5rem 0 2rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  .fuss .wrap {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.5rem 1.5rem;
+  }
+  .fuss a {
+    color: var(--muted);
+  }
+</style>

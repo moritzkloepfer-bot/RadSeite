@@ -1,0 +1,177 @@
+:root {
+  --bg: #f5f3ec;
+  --surface: #fffdf8;
+  --surface-2: #efece2;
+  --text: #1d2621;
+  --muted: #5b675f;
+  --border: #dfd9cb;
+  --accent: #2e6a4d;
+  --accent-soft: #dcebe1;
+  --geplant: #b8691f;
+  --geplant-soft: #f6e5d2;
+  --stern-leer: #cfc8b8;
+  --stern-anspruch: #b4552f;
+  --stern-schoenheit: #d19a17;
+  --stern-ruhe: #2e7d57;
+  --shadow: 0 1px 2px rgb(30 40 30 / 6%), 0 4px 16px rgb(30 40 30 / 6%);
+  --radius: 14px;
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-head: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111613;
+    --surface: #18201b;
+    --surface-2: #202a24;
+    --text: #e6ece8;
+    --muted: #9eaba3;
+    --border: #2d3831;
+    --accent: #72c29a;
+    --accent-soft: #1f3a2c;
+    --geplant: #e4a35e;
+    --geplant-soft: #3a2b1b;
+    --stern-leer: #3b463f;
+    --stern-anspruch: #e3825a;
+    --stern-schoenheit: #eec14a;
+    --stern-ruhe: #6cc497;
+    --shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 4px 16px rgb(0 0 0 / 25%);
+    color-scheme: dark;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+a {
+  color: var(--accent);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-head);
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.wrap {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.15em 0.6em;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.badge.geplant {
+  background: var(--geplant-soft);
+  color: var(--geplant);
+}
+
+.chip {
+  display: inline-block;
+  font-size: 0.78rem;
+  padding: 0.1em 0.55em;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  padding: 0.55em 1em;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--surface);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Leaflet an das Farbschema anpassen */
+.leaflet-container {
+  font: inherit;
+  background: var(--surface-2);
+}
+
+@media (prefers-color-scheme: dark) {
+  .leaflet-tile-pane {
+    filter: brightness(0.75) contrast(1.1) saturate(0.8);
+  }
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--surface);
+  color: var(--text);
+}

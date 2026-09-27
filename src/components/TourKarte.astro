@@ -1,0 +1,80 @@
+---
+import { getImage } from 'astro:assets';
+import type { Tour } from '../lib/touren';
+
+interface Props {
+  tour: Tour;
+}
+const { tour } = Astro.props;
+
+const fotos = await Promise.all(
+  tour.fotos.map(async (f, index) => {
+    if (!f.position) return null;
+    const mini = await getImage({ src: f.bild, width: 96, height: 96, fit: 'cover', format: 'webp' });
+    return { index, lat: +f.position.lat.toFixed(5), lon: +f.position.lon.toFixed(5), src: mini.src };
+  }),
+);
+const daten = JSON.stringify({
+  linie: tour.linie,
+  status: tour.daten.status,
+  fotos: fotos.filter(Boolean),
+});
+---
+
+<div class="tour-karte card" data-tourkarte={daten} role="region" aria-label="Karte der Tour"></div>
+
+<script>
+  import { basisKarte, einpassen, farbe, fotoIcon, L } from '../scripts/karte';
+
+  for (const el of document.querySelectorAll<HTMLElement>('[data-tourkarte]')) {
+    const d = JSON.parse(el.dataset.tourkarte!);
+    const karte = basisKarte(el);
+    const geplant = d.status === 'geplant';
+    const linie = L.polyline(d.linie, {
+      color: farbe(geplant ? '--geplant' : '--accent'),
+      weight: 5,
+      opacity: 0.9,
+      dashArray: geplant ? '10 8' : undefined,
+    }).addTo(karte);
+    if (d.linie.length) {
+      L.circleMarker(d.linie[0], { radius: 6, color: '#fff', weight: 2, fillColor: '#2e8b57', fillOpacity: 1 })
+        .bindTooltip('Start')
+        .addTo(karte);
+      L.circleMarker(d.linie[d.linie.length - 1], { radius: 6, color: '#fff', weight: 2, fillColor: '#b23b3b', fillOpacity: 1 })
+        .bindTooltip('Ziel')
+        .addTo(karte);
+    }
+    einpassen(karte, linie.getBounds());
+
+    for (const f of d.fotos) {
+      L.marker([f.lat, f.lon], { icon: fotoIcon(f.src), title: 'Foto öffnen' })
+        .on('click', () => window.dispatchEvent(new CustomEvent('galerie:oeffnen', { detail: { index: f.index } })))
+        .addTo(karte);
+    }
+
+    // Kopplung mit dem Höhenprofil
+    const cursor = L.circleMarker([0, 0], { radius: 7, color: '#fff', weight: 3, fillColor: farbe('--text'), fillOpacity: 1 });
+    window.addEventListener('profil:hover', (e) => {
+      const { lat, lon } = (e as CustomEvent).detail;
+      cursor.setLatLng([lat, lon]);
+      if (!karte.hasLayer(cursor)) cursor.addTo(karte);
+    });
+    window.addEventListener('profil:ende', () => cursor.remove());
+  }
+</script>
+
+<style>
+  .tour-karte {
+    height: clamp(320px, 55vh, 560px);
+    overflow: hidden;
+  }
+  :global(.foto-marker img) {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 3px solid #fff;
+    box-shadow: 0 2px 6px rgb(0 0 0 / 35%);
+    object-fit: cover;
+    cursor: pointer;
+  }
+</style>
